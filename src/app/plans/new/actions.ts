@@ -20,11 +20,7 @@ export async function createPlan(formData: FormData): Promise<Plan> {
     redirect('/auth/login');
   }
 
-  const dbSourcePath = path.resolve(process.cwd(), 'database.db');
   const dbTempPath = '/tmp/database.db';
-  if (!fs.existsSync(dbTempPath)) {
-    fs.copyFileSync(dbSourcePath, dbTempPath);
-  }
 
   const db = new Database(dbTempPath);
 
@@ -210,11 +206,7 @@ export async function deletePlan(planId: string): Promise<void> {
     throw new Error('Unauthorized');
   }
 
-  const dbSourcePath = path.resolve(process.cwd(), 'database.db');
   const dbTempPath = '/tmp/database.db';
-  if (!fs.existsSync(dbTempPath)) {
-    fs.copyFileSync(dbSourcePath, dbTempPath);
-  }
 
   const db = new Database(dbTempPath);
 

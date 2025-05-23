@@ -8,11 +8,7 @@ import path from 'path';
 import fs from 'fs';
 
 export async function registerUser(formData: FormData) {
-  const dbSourcePath = path.resolve(process.cwd(), 'database.db');
   const dbTempPath = '/tmp/database.db';
-  if (!fs.existsSync(dbTempPath)) {
-    fs.copyFileSync(dbSourcePath, dbTempPath);
-  }
 
   const db = new Database(dbTempPath);
 
