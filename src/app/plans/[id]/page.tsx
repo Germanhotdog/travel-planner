@@ -10,32 +10,8 @@ interface PageProps {
   searchParams: { [key: string]: string | string[] | undefined };
 }
 
-interface DBPlan {
-  id: string;
-  title: string;
-  ownerId: string;
-}
-
-interface DBActivity {
-  id: string;
-  title: string;
-  destination: string;
-  startDate: string;
-  endDate: string;
-  startTime: string | null;
-  endTime: string | null;
-  activities: string | null;
-  ownerId: string;
-  planId: string;
-}
-
-interface DBUser {
-  id: string;
-  email: string;
-  name: string | null;
-}
-
-export default async function PlanDetailPage({ params }: PageProps) {
+// Assert the type to satisfy the auto-generated constraint
+export default async function PlanDetailPage({ params }: PageProps & { params: any }) {
   const session = await getServerSession(authOptions);
   if (!session) {
     redirect('/auth/login');
@@ -93,4 +69,29 @@ export default async function PlanDetailPage({ params }: PageProps) {
       isOwner={isOwner}
     />
   );
+}
+
+interface DBPlan {
+  id: string;
+  title: string;
+  ownerId: string;
+}
+
+interface DBActivity {
+  id: string;
+  title: string;
+  destination: string;
+  startDate: string;
+  endDate: string;
+  startTime: string | null;
+  endTime: string | null;
+  activities: string | null;
+  ownerId: string;
+  planId: string;
+}
+
+interface DBUser {
+  id: string;
+  email: string;
+  name: string | null;
 }
