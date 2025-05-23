@@ -6,6 +6,7 @@ import Database from 'better-sqlite3';
 import { NextResponse } from 'next/server';
 import { Plan, Activity } from '@/lib/store/planSlice';
 import { v4 as uuidv4 } from 'uuid';
+import path from 'path';
 
 // Define interface for SQLite user query
 interface DBUser {
@@ -18,7 +19,8 @@ export async function GET() {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const db = new Database('./database.db', { readonly: true });
+  const dbPath = path.resolve(process.cwd(), 'database.db');
+  const db = new Database(dbPath, {readonly:true});
 
   try {
     const plans = db

@@ -4,6 +4,7 @@ import { redirect } from 'next/navigation';
 import Database from 'better-sqlite3';
 import ClientDashboard from './ClientDashboard';
 import { Plan, Activity } from '@/lib/store/planSlice';
+import path from 'path';
 
 export default async function Dashboard() {
   const session = await getServerSession(authOptions);
@@ -11,7 +12,8 @@ export default async function Dashboard() {
     redirect('/auth/login');
   }
 
-  const db = new Database('./database.db', { readonly: true });
+  const dbPath = path.resolve(process.cwd(), 'database.db');
+  const db = new Database(dbPath);
 
   try {
     const plans = db

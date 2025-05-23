@@ -3,6 +3,7 @@ import { authOptions } from '@/auth.config';
 import Database from 'better-sqlite3';
 import ClientPlanDetail from './ClientPlanDetail';
 import { redirect } from 'next/navigation';
+import path from 'path';
 
 // Adjusted to match Next.js App Router expectations
 interface PageProps {
@@ -19,7 +20,8 @@ export default async function PlanDetailPage({ params: paramsPromise}: PageProps
     redirect('/auth/login');
   }
 
-  const db = new Database('./database.db');
+  const dbPath = path.resolve(process.cwd(), 'database.db');
+  const db = new Database(dbPath);
   let plan: DBPlan | undefined;
   let activities: DBActivity[] = [];
   let sharedUsers: DBUser[] = [];

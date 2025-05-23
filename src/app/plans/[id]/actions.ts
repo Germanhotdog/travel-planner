@@ -5,6 +5,7 @@ import { authOptions } from '@/auth.config';
 import Database from 'better-sqlite3';
 import { Activity } from '@/lib/store/planSlice';
 import { v4 as uuidv4 } from 'uuid';
+import path from 'path';
 
 //more comment
 interface DBPlan {
@@ -20,7 +21,8 @@ export async function updatePlanTitle(planId: string, newTitle: string): Promise
     throw new Error('Unauthorized');
   }
 
-  const db = new Database('./database.db');
+  const dbPath = path.resolve(process.cwd(), 'database.db');
+  const db = new Database(dbPath);
 
   try {
     const plan = db
@@ -55,7 +57,8 @@ export async function updateActivity(activityId: string, updatedActivity: Partia
     throw new Error('Unauthorized');
   }
 
-  const db = new Database('./database.db');
+  const dbPath = path.resolve(process.cwd(), 'database.db');
+  const db = new Database(dbPath);
 
   try {
     const activity = db
@@ -162,7 +165,8 @@ export async function createActivity(planId: string, activityData: Omit<Activity
     throw new Error('Unauthorized');
   }
 
-  const db = new Database('./database.db');
+  const dbPath = path.resolve(process.cwd(), 'database.db');
+  const db = new Database(dbPath);
 
   try {
     const plan = db
@@ -258,7 +262,8 @@ export async function deleteActivity(activityId: string): Promise<void> {
     throw new Error('Unauthorized');
   }
 
-  const db = new Database('./database.db');
+  const dbPath = path.resolve(process.cwd(), 'database.db');
+  const db = new Database(dbPath);
 
   try {
     const activity = db
