@@ -10,8 +10,10 @@ interface PageProps {
   searchParams: { [key: string]: string | string[] | undefined };
 }
 
-// Assert the type to satisfy the auto-generated constraint
-export default async function PlanDetailPage({ params }: PageProps & { params: any }) {
+// Assert the props to satisfy the auto-generated constraint
+export default async function PlanDetailPage(props: any) {
+  const { params, searchParams } = props as PageProps;
+
   const session = await getServerSession(authOptions);
   if (!session) {
     redirect('/auth/login');
