@@ -194,9 +194,10 @@ export async function POST(request: Request) {
       ownerId: plan.ownerId,
       activities: createdActivities,
     });
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error('Create plan error:', err);
-    return NextResponse.json({ error: err.message || 'Failed to create plan' }, { status: 500 });
+    const errorMessage = err instanceof Error ? err.message : 'Failed to create plan';
+    return NextResponse.json({ error: errorMessage }, { status: 500 });
   } finally {
     db.close();
   }

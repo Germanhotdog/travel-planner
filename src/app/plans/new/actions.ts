@@ -51,10 +51,10 @@ export async function createPlan(formData: FormData): Promise<Plan> {
         // Fallback: Try parsing AM/PM formats
         const match = activity.startTime.match(/^(?:(\d{1,2}):(\d{2}))(?:\s*(上午|下午|AM|PM))?$/i);
         if (match) {
-          let [, hours, minutes, period] = match;
+          const [, hours, minutes, period] = match;
           let hourNum = parseInt(hours, 10);
           if (period) {
-            period = period.toLowerCase();
+            period.toLowerCase();
             if ((period === '下午' || period === 'pm') && hourNum < 12) {
               hourNum += 12;
             } else if ((period === '上午' || period === 'am') && hourNum === 12) {
@@ -70,10 +70,10 @@ export async function createPlan(formData: FormData): Promise<Plan> {
       if (activity.endTime && !timeRegex.test(activity.endTime)) {
         const match = activity.endTime.match(/^(?:(\d{1,2}):(\d{2}))(?:\s*(上午|下午|AM|PM))?$/i);
         if (match) {
-          let [, hours, minutes, period] = match;
+          const [, hours, minutes, period] = match;
           let hourNum = parseInt(hours, 10);
           if (period) {
-            period = period.toLowerCase();
+            period.toLowerCase();
             if ((period === '下午' || period === 'pm') && hourNum < 12) {
               hourNum += 12;
             } else if ((period === '上午' || period === 'am') && hourNum === 12) {
@@ -188,9 +188,9 @@ export async function createPlan(formData: FormData): Promise<Plan> {
       ownerId: plan.ownerId,
       activities: createdActivities,
     };
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error('Create plan error:', err);
-    throw new Error(err.message || 'Failed to create plan');
+    throw new Error(err instanceof Error ? err.message : 'Failed to create plan');
   } finally {
     db.close();
   }

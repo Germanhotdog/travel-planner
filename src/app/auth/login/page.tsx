@@ -29,7 +29,6 @@ export default function Login() {
       setError('An error occurred during login');
       console.error(err);
     }
-    router.push('/dashboard');
   };
 
   return (
@@ -66,7 +65,7 @@ export default function Login() {
           </button>
         </form>
         <p className="mt-4 text-center">
-          Don't have an account?{' '}
+          Don&apos;t have an account?{' '}
           <Link href="/auth/register" className="text-blue-500">
             Register
           </Link>

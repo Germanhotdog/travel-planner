@@ -39,7 +39,15 @@ interface ClientPlanDetailProps {
 export default function ClientPlanDetail({ plan, activities: initialActivities, sharedUsers, isOwner }: ClientPlanDetailProps) {
   const [title, setTitle] = useState(plan.title);
   const [isEditingTitle, setIsEditingTitle] = useState(false);
-  const [activities, setActivities] = useState(initialActivities);
+  const [activities, setActivities] = useState([...initialActivities].sort((a, b) => {
+    const dateA = new Date(a.startDate).getTime();
+    const dateB = new Date(b.startDate).getTime();
+    if (dateA !== dateB) return dateA - dateB;
+    // If dates are equal, sort by startTime (null comes last)
+    const timeA = a.startTime ? a.startTime : '23:59';
+    const timeB = b.startTime ? b.startTime : '23:59';
+    return timeA.localeCompare(timeB);
+  }));
   const [editingActivity, setEditingActivity] = useState<{ [key: string]: string }>({});
   const [error, setError] = useState('');
   const [mapError, setMapError] = useState('');
@@ -163,8 +171,9 @@ export default function ClientPlanDetail({ plan, activities: initialActivities, 
       await updatePlanTitle(plan.id, title);
       setIsEditingTitle(false);
       setError('');
-    } catch (err: any) {
-      setError(err.message || 'Failed to update plan title');
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to update plan title';
+      setError(errorMessage);
     }
   };
 
@@ -172,17 +181,25 @@ export default function ClientPlanDetail({ plan, activities: initialActivities, 
     if (!isOwner) return;
     try {
       const updatedActivity = await updateActivity(activityId, { [field]: value || null });
-      setActivities(activities.map((activity) =>
-        activity.id === activityId ? updatedActivity : activity
-      ));
+      setActivities((prev) =>
+        [...prev].sort((a, b) => {
+          const dateA = new Date(a.startDate).getTime();
+          const dateB = new Date(b.startDate).getTime();
+          if (dateA !== dateB) return dateA - dateB;
+          const timeA = a.startTime ? a.startTime : '23:59';
+          const timeB = b.startTime ? b.startTime : '23:59';
+          return timeA.localeCompare(timeB);
+        }).map((activity) => activity.id === activityId ? updatedActivity : activity)
+      );
       setEditingActivity((prev) => {
         const newState = { ...prev };
         delete newState[`${activityId}-${field}`];
         return newState;
       });
       setError('');
-    } catch (err: any) {
-      setError(err.message || `Failed to update activity ${field}`);
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : `Failed to update activity ${field}`;
+      setError(errorMessage);
     }
   };
 
@@ -205,7 +222,14 @@ export default function ClientPlanDetail({ plan, activities: initialActivities, 
       };
 
       const createdActivity = await createActivity(plan.id, activityData);
-      setActivities([...activities, createdActivity]);
+      setActivities((prev) => [...prev, createdActivity].sort((a, b) => {
+        const dateA = new Date(a.startDate).getTime();
+        const dateB = new Date(b.startDate).getTime();
+        if (dateA !== dateB) return dateA - dateB;
+        const timeA = a.startTime ? a.startTime : '23:59';
+        const timeB = b.startTime ? b.startTime : '23:59';
+        return timeA.localeCompare(timeB);
+      }));
       setNewActivity({
         title: '',
         destination: '',
@@ -217,8 +241,9 @@ export default function ClientPlanDetail({ plan, activities: initialActivities, 
       });
       setShowAddForm(false);
       setError('');
-    } catch (err: any) {
-      setError(err.message || 'Failed to add activity');
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to add activity';
+      setError(errorMessage);
     }
   };
 
@@ -230,10 +255,20 @@ export default function ClientPlanDetail({ plan, activities: initialActivities, 
 
     try {
       await deleteActivity(activityId);
-      setActivities(activities.filter((activity) => activity.id !== activityId));
+      setActivities((prev) =>
+        [...prev].filter((activity) => activity.id !== activityId).sort((a, b) => {
+          const dateA = new Date(a.startDate).getTime();
+          const dateB = new Date(b.startDate).getTime();
+          if (dateA !== dateB) return dateA - dateB;
+          const timeA = a.startTime ? a.startTime : '23:59';
+          const timeB = b.startTime ? b.startTime : '23:59';
+          return timeA.localeCompare(timeB);
+        })
+      );
       setError('');
-    } catch (err: any) {
-      setError(err.message || 'Failed to delete activity');
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to delete activity';
+      setError(errorMessage);
     }
   };
 
@@ -307,7 +342,7 @@ export default function ClientPlanDetail({ plan, activities: initialActivities, 
               <p>No activities</p>
             ) : (
               <ul className="list-disc pl-5">
-                {activities.map((activity, index) => (
+                {activities.map((activity) => (
                   <li key={activity.id} className="mb-2">
                     <div className="flex flex-wrap items-center space-x-2">
                       {/* Activity Title */}

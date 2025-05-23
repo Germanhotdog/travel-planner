@@ -4,15 +4,15 @@ import Database from 'better-sqlite3';
 import ClientPlanDetail from './ClientPlanDetail';
 import { redirect } from 'next/navigation';
 
-// Define the correct PageProps type for a dynamic route
+// Adjusted to match Next.js App Router expectations
 interface PageProps {
-  params: { id: string };
-  searchParams: { [key: string]: string | string[] | undefined };
+  params: Promise<{ id: string }>;
 }
 
-// Assert the props to satisfy the auto-generated constraint
-export default async function PlanDetailPage(props: any) {
-  const { params, searchParams } = props as PageProps;
+export default async function PlanDetailPage({ params: paramsPromise}: PageProps) {
+  // Await both promises
+  const params = await paramsPromise;
+  const { id } = params;
 
   const session = await getServerSession(authOptions);
   if (!session) {
@@ -25,38 +25,31 @@ export default async function PlanDetailPage(props: any) {
   let sharedUsers: DBUser[] = [];
 
   try {
-    // Fetch the plan
     plan = db
       .prepare('SELECT * FROM plans WHERE id = ?')
-      .get(params.id) as DBPlan | undefined;
+      .get(id) as DBPlan | undefined;
 
     if (!plan) {
-      redirect('/dashboard'); // Redirect if plan not found
+      redirect('/dashboard');
     }
 
-    // Fetch activities for the plan
     activities = db
       .prepare('SELECT * FROM activities WHERE planId = ?')
-      .all(params.id) as DBActivity[];
+      .all(id) as DBActivity[];
 
-    // Fetch shared users
     const sharedUserIds = db
-      .prepare(`
-        SELECT userId FROM plan_shares WHERE planId = ?
-      `)
-      .all(params.id) as { userId: string }[];
+      .prepare('SELECT userId FROM plan_shares WHERE planId = ?')
+      .all(id) as { userId: string }[];
 
     if (sharedUserIds.length > 0) {
       const placeholders = sharedUserIds.map(() => '?').join(',');
       sharedUsers = db
-        .prepare(`
-          SELECT id, email, name FROM users WHERE id IN (${placeholders})
-        `)
+        .prepare(`SELECT id, email, name FROM users WHERE id IN (${placeholders})`)
         .all(...sharedUserIds.map((u) => u.userId)) as DBUser[];
     }
   } catch (err) {
     console.error('Error fetching plan details:', err);
-    redirect('/dashboard'); // Redirect on error
+    redirect('/dashboard');
   } finally {
     db.close();
   }

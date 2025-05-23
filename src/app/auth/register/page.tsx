@@ -20,7 +20,7 @@ export default function Register() {
             try {
               await registerUser(formData);
               router.push('/auth/login');
-            } catch (err) {
+            } catch {
               setError('Registration failed. Email may already exist.');
             }
           }}

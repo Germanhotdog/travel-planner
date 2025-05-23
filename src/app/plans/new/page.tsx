@@ -50,11 +50,11 @@ export default function NewPlan() {
       return time; // Let server handle validation
     }
 
-    let [, hours, minutes, period] = match;
+    const [, hours, minutes, period] = match;
     let hourNum = parseInt(hours, 10);
 
     if (period) {
-      period = period.toLowerCase();
+      period.toLowerCase();
       if ((period === '下午' || period === 'pm') && hourNum < 12) {
         hourNum += 12;
       } else if ((period === '上午' || period === 'am') && hourNum === 12) {
@@ -87,8 +87,9 @@ export default function NewPlan() {
 
       await createPlan(formData);
       router.push('/dashboard');
-    } catch (err: any) {
-      setError(err.message || 'Failed to create plan');
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to create plan';
+      setError(errorMessage);
       console.error('Create plan error:', err);
     }
   };

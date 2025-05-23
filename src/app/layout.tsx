@@ -4,7 +4,6 @@ import { SessionProvider } from 'next-auth/react';
 import { Provider } from 'react-redux';
 import { store } from '@/lib/store';
 import './globals.css';
-import type { Metadata } from 'next';
 
 
 export default function RootLayout({
