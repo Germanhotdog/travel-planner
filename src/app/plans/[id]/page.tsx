@@ -28,6 +28,7 @@ interface DBUser {
   name: string | null;
 }
 
+//PageProps
 interface PageProps {
   params: { id: string };
   searchParams?: { [key: string]: string | string[] | undefined };
