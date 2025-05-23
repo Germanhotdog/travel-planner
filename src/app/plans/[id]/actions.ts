@@ -6,11 +6,13 @@ import Database from 'better-sqlite3';
 import { Activity } from '@/lib/store/planSlice';
 import { v4 as uuidv4 } from 'uuid';
 
+//more comment
 interface DBPlan {
   id: string;
   title: string;
   ownerId: string;
 }
+
 
 export async function updatePlanTitle(planId: string, newTitle: string): Promise<void> {
   const session = await getServerSession(authOptions);
@@ -46,6 +48,7 @@ export async function updatePlanTitle(planId: string, newTitle: string): Promise
   }
 }
 
+//update activity in the plan
 export async function updateActivity(activityId: string, updatedActivity: Partial<Activity>): Promise<Activity> {
   const session = await getServerSession(authOptions);
   if (!session) {
