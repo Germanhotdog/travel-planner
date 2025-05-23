@@ -6,6 +6,8 @@ import Database from 'better-sqlite3';
 import { redirect } from 'next/navigation';
 import { Plan } from '@/lib/store/planSlice';
 import { v4 as uuidv4 } from 'uuid';
+import path from 'path';
+import fs from 'fs';
 
 // Define interface for SQLite user query
 interface DBUser {
@@ -18,7 +20,13 @@ export async function createPlan(formData: FormData): Promise<Plan> {
     redirect('/auth/login');
   }
 
-  const db = new Database('./database.db');
+  const dbSourcePath = path.resolve(process.cwd(), 'database.db');
+  const dbTempPath = '/tmp/database.db';
+  if (!fs.existsSync(dbTempPath)) {
+    fs.copyFileSync(dbSourcePath, dbTempPath);
+  }
+
+  const db = new Database(dbTempPath);
 
   try {
     // Verify user exists
@@ -202,7 +210,13 @@ export async function deletePlan(planId: string): Promise<void> {
     throw new Error('Unauthorized');
   }
 
-  const db = new Database('./database.db');
+  const dbSourcePath = path.resolve(process.cwd(), 'database.db');
+  const dbTempPath = '/tmp/database.db';
+  if (!fs.existsSync(dbTempPath)) {
+    fs.copyFileSync(dbSourcePath, dbTempPath);
+  }
+
+  const db = new Database(dbTempPath);
 
   try {
     const plan = db
