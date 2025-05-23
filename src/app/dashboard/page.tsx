@@ -5,6 +5,7 @@ import Database from 'better-sqlite3';
 import ClientDashboard from './ClientDashboard';
 import { Plan, Activity } from '@/lib/store/planSlice';
 import path from 'path';
+import fs from 'fs';
 
 export default async function Dashboard() {
   const session = await getServerSession(authOptions);
@@ -12,8 +13,13 @@ export default async function Dashboard() {
     redirect('/auth/login');
   }
 
-  const dbPath = path.resolve(process.cwd(), 'database.db');
-  const db = new Database(dbPath);
+  const dbSourcePath = path.resolve(process.cwd(), 'database.db');
+  const dbTempPath = '/tmp/database.db';
+  if (!fs.existsSync(dbTempPath)) {
+    fs.copyFileSync(dbSourcePath, dbTempPath);
+  }
+
+  const db = new Database(dbTempPath);
 
   try {
     const plans = db

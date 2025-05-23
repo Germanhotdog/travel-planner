@@ -5,10 +5,16 @@ import bcrypt from 'bcrypt';
 import { redirect } from 'next/navigation';
 import { v4 as uuidv4 } from 'uuid';
 import path from 'path';
+import fs from 'fs';
 
 export async function registerUser(formData: FormData) {
-  const dbPath = path.resolve(process.cwd(), 'database.db');
-  const db = new Database(dbPath);
+  const dbSourcePath = path.resolve(process.cwd(), 'database.db');
+  const dbTempPath = '/tmp/database.db';
+  if (!fs.existsSync(dbTempPath)) {
+    fs.copyFileSync(dbSourcePath, dbTempPath);
+  }
+
+  const db = new Database(dbTempPath);
 
   try {
     const name = formData.get('name') as string;

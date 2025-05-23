@@ -6,6 +6,7 @@ import Database from 'better-sqlite3';
 import { Activity } from '@/lib/store/planSlice';
 import { v4 as uuidv4 } from 'uuid';
 import path from 'path';
+import fs from 'fs';
 
 //more comment
 interface DBPlan {
@@ -21,8 +22,13 @@ export async function updatePlanTitle(planId: string, newTitle: string): Promise
     throw new Error('Unauthorized');
   }
 
-  const dbPath = path.resolve(process.cwd(), 'database.db');
-  const db = new Database(dbPath);
+  const dbSourcePath = path.resolve(process.cwd(), 'database.db');
+  const dbTempPath = '/tmp/database.db';
+  if (!fs.existsSync(dbTempPath)) {
+    fs.copyFileSync(dbSourcePath, dbTempPath);
+  }
+
+  const db = new Database(dbTempPath);
 
   try {
     const plan = db
@@ -57,8 +63,13 @@ export async function updateActivity(activityId: string, updatedActivity: Partia
     throw new Error('Unauthorized');
   }
 
-  const dbPath = path.resolve(process.cwd(), 'database.db');
-  const db = new Database(dbPath);
+  const dbSourcePath = path.resolve(process.cwd(), 'database.db');
+  const dbTempPath = '/tmp/database.db';
+  if (!fs.existsSync(dbTempPath)) {
+    fs.copyFileSync(dbSourcePath, dbTempPath);
+  }
+
+  const db = new Database(dbTempPath);
 
   try {
     const activity = db
@@ -165,8 +176,13 @@ export async function createActivity(planId: string, activityData: Omit<Activity
     throw new Error('Unauthorized');
   }
 
-  const dbPath = path.resolve(process.cwd(), 'database.db');
-  const db = new Database(dbPath);
+  const dbSourcePath = path.resolve(process.cwd(), 'database.db');
+  const dbTempPath = '/tmp/database.db';
+  if (!fs.existsSync(dbTempPath)) {
+    fs.copyFileSync(dbSourcePath, dbTempPath);
+  }
+
+  const db = new Database(dbTempPath);
 
   try {
     const plan = db
@@ -262,8 +278,13 @@ export async function deleteActivity(activityId: string): Promise<void> {
     throw new Error('Unauthorized');
   }
 
-  const dbPath = path.resolve(process.cwd(), 'database.db');
-  const db = new Database(dbPath);
+  const dbSourcePath = path.resolve(process.cwd(), 'database.db');
+  const dbTempPath = '/tmp/database.db';
+  if (!fs.existsSync(dbTempPath)) {
+    fs.copyFileSync(dbSourcePath, dbTempPath);
+  }
+
+  const db = new Database(dbTempPath);
 
   try {
     const activity = db
