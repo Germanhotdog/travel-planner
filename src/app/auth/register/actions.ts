@@ -4,8 +4,6 @@ import Database from 'better-sqlite3';
 import bcrypt from 'bcrypt';
 import { redirect } from 'next/navigation';
 import { v4 as uuidv4 } from 'uuid';
-import path from 'path';
-import fs from 'fs';
 
 export async function registerUser(formData: FormData) {
   const dbTempPath = '/tmp/database.db';

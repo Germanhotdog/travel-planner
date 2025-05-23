@@ -6,8 +6,6 @@ import Database from 'better-sqlite3';
 import { redirect } from 'next/navigation';
 import { Plan } from '@/lib/store/planSlice';
 import { v4 as uuidv4 } from 'uuid';
-import path from 'path';
-import fs from 'fs';
 
 // Define interface for SQLite user query
 interface DBUser {
