@@ -1,8 +1,8 @@
 import NextAuth, { User, Session } from 'next-auth';
 import { JWT } from 'next-auth/jwt';
 import CredentialsProvider from 'next-auth/providers/credentials';
-import Database from 'better-sqlite3';
 import bcrypt from 'bcrypt';
+import { createClient, Row } from '@libsql/client';
 
 // Define interface for SQLite user
 interface DBUser {
@@ -21,17 +21,22 @@ export const authOptions = {
         password: { label: 'Password', type: 'password' },
       },
       async authorize(credentials) {
-        let db;
+        const db = createClient({
+          url: process.env.TURSO_DATABASE_URL as string,
+          authToken: process.env.TURSO_AUTH_TOKEN,
+        });
+
         try {
-          db = new Database('./database.db', { readonly: true });
           if (!credentials?.email || !credentials?.password) {
             console.error('Missing credentials:', { email: credentials?.email });
             return null;
           }
 
-          const user = db
-            .prepare('SELECT * FROM users WHERE email = ?')
-            .get(credentials.email) as DBUser | undefined;
+          const userResult = await db.execute({
+            sql: 'SELECT * FROM users WHERE email = ?',
+            args: [credentials.email],
+          });
+          const user = userResult.rows[0] as Row & DBUser | undefined;
 
           if (!user) {
             console.error('User not found:', credentials.email);
@@ -47,14 +52,6 @@ export const authOptions = {
         } catch (err) {
           console.error('Authorize error:', err);
           return null;
-        } finally {
-          if (db) {
-            try {
-              db.close();
-            } catch (closeErr) {
-              console.error('Error closing database:', closeErr);
-            }
-          }
         }
       },
     }),
