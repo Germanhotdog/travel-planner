@@ -2,16 +2,34 @@
 
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/auth.config';
-import Database from 'better-sqlite3';
 import { NextResponse } from 'next/server';
 import { Plan, Activity } from '@/lib/store/planSlice';
 import { v4 as uuidv4 } from 'uuid';
-import path from 'path';
-import fs from 'fs';
+import { createClient,type Row } from '@libsql/client';
 
 // Define interface for SQLite user query
 interface DBUser {
   id: string;
+}
+
+const db = createClient({
+  url: process.env.TURSO_DATABASE_URL as string,
+  authToken: process.env.TURSO_AUTH_TOKEN,
+});
+
+function mapToActivity(row: Row): Activity {
+  return {
+    id: String(row.id),
+    title: String(row.title),
+    destination: String(row.destination),
+    startDate: new Date(String(row.startDate)).toISOString(),
+    endDate: new Date(String(row.endDate)).toISOString(),
+    startTime: row.startTime ? String(row.startTime) : null,
+    endTime: row.endTime ? String(row.endTime) : null,
+    activities: row.activities ? String(row.activities) : null,
+    ownerId: String(row.ownerId),
+    planId: String(row.planId)
+  };
 }
 
 export async function GET() {
@@ -20,53 +38,52 @@ export async function GET() {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const dbSourcePath = path.resolve(process.cwd(), 'database.db');
-  const dbTempPath = '/tmp/database.db';
-  if (!fs.existsSync(dbTempPath)) {
-    fs.copyFileSync(dbSourcePath, dbTempPath);
-  }
-
-  const db = new Database(dbTempPath);
-
   try {
-    const plans = db
-      .prepare(`
+    // Fetch plans where the user is either the owner or a shared user
+    const plansResult = await db.execute({
+      sql: `
         SELECT p.*
         FROM plans p
         LEFT JOIN plan_shares ps ON p.id = ps.planId
         WHERE p.ownerId = ? OR ps.userId = ?
         GROUP BY p.id
-      `)
-      .all(session.user.id, session.user.id) as {
-        id: string;
-        title: string;
-        ownerId: string;
-      }[];
+      `,
+      args: [session.user.id, session.user.id],
+    });
 
-    const plansWithActivities: Plan[] = plans.map((plan) => {
-      const activities = db
-        .prepare(`
+    const plans = plansResult.rows.map(row => ({
+      id: row.id as string,
+      title: row.title as string,
+      ownerId: row.ownerId as string
+    }));
+
+    // Fetch activities for each plan
+    const plansWithActivities: Plan[] = [];
+    for (const plan of plans) {
+      const activitiesResult = await db.execute({
+        sql: `
           SELECT a.*
           FROM activities a
           WHERE a.planId = ?
           ORDER BY a.startDate ASC, a.startTime ASC, a.endDate ASC, a.endTime ASC
-        `)
-        .all(plan.id) as Activity[];
+        `,
+        args: [plan.id],
+      });
 
-      return {
+      const activities = activitiesResult.rows.map(mapToActivity);
+
+      plansWithActivities.push({
         id: plan.id,
         title: plan.title,
         ownerId: plan.ownerId,
         activities,
-      };
-    });
+      });
+    }
 
     return NextResponse.json(plansWithActivities);
   } catch (err) {
     console.error('Fetch plans error:', err);
     return NextResponse.json({ error: 'Failed to fetch plans' }, { status: 500 });
-  } finally {
-    db.close();
   }
 }
 
@@ -75,14 +92,6 @@ export async function POST(request: Request) {
   if (!session) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
-
-  const dbSourcePath = path.resolve(process.cwd(), 'database.db');
-  const dbTempPath = '/tmp/database.db';
-  if (!fs.existsSync(dbTempPath)) {
-    fs.copyFileSync(dbSourcePath, dbTempPath);
-  }
-
-  const db = new Database(dbTempPath);
 
   try {
     const formData = await request.formData();
@@ -148,34 +157,37 @@ export async function POST(request: Request) {
     };
 
     // Insert into plans table
-    db.prepare(`
-      INSERT INTO plans (id, title, ownerId)
-      VALUES (?, ?, ?)
-    `).run(
-      plan.id,
-      plan.title,
-      plan.ownerId
-    );
+    await db.execute({
+      sql: `
+        INSERT INTO plans (id, title, ownerId)
+        VALUES (?, ?, ?)
+      `,
+      args: [plan.id, plan.title, plan.ownerId],
+    });
 
     // Insert activities into activities table
-    const createdActivities: Activity[] = activitiesData.map((activity) => {
+    const createdActivities: Activity[] = [];
+    for (const activity of activitiesData) {
       const activityId = uuidv4();
-      db.prepare(`
-        INSERT INTO activities (id, title, destination, startDate, endDate, startTime, endTime, activities, ownerId, planId)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `).run(
-        activityId,
-        activity.title,
-        activity.destination,
-        activity.startDate,
-        activity.endDate,
-        activity.startTime,
-        activity.endTime,
-        activity.activities,
-        session.user.id,
-        planId
-      );
-      return {
+      await db.execute({
+        sql: `
+          INSERT INTO activities (id, title, destination, startDate, endDate, startTime, endTime, activities, ownerId, planId)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `,
+        args: [
+          activityId,
+          activity.title,
+          activity.destination,
+          activity.startDate,
+          activity.endDate,
+          activity.startTime,
+          activity.endTime,
+          activity.activities,
+          session.user.id,
+          planId,
+        ],
+      });
+      createdActivities.push({
         id: activityId,
         title: activity.title,
         destination: activity.destination,
@@ -186,19 +198,27 @@ export async function POST(request: Request) {
         activities: activity.activities,
         ownerId: session.user.id,
         planId,
-      };
-    });
+      });
+    }
 
     // Share plan if sharedEmail is provided
     if (sharedEmail) {
-      const sharedUser = db
-        .prepare('SELECT id FROM users WHERE email = ?')
-        .get(sharedEmail) as DBUser | undefined;
+      const sharedUserResult = await db.execute({
+        sql: 'SELECT id FROM users WHERE email = ?',
+        args: [sharedEmail],
+      });
+      const sharedUserRow = sharedUserResult.rows[0];
+      const sharedUser = sharedUserRow ? {
+        id: String(sharedUserRow.id)
+      } as DBUser : undefined;
       if (sharedUser) {
-        db.prepare(`
-          INSERT INTO plan_shares (planId, userId)
-          VALUES (?, ?)
-        `).run(planId, sharedUser.id);
+        await db.execute({
+          sql: `
+            INSERT INTO plan_shares (planId, userId)
+            VALUES (?, ?)
+          `,
+          args: [planId, sharedUser.id],
+        });
       }
     }
 
@@ -212,7 +232,5 @@ export async function POST(request: Request) {
     console.error('Create plan error:', err);
     const errorMessage = err instanceof Error ? err.message : 'Failed to create plan';
     return NextResponse.json({ error: errorMessage }, { status: 500 });
-  } finally {
-    db.close();
   }
 }

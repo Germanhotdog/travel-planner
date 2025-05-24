@@ -2,15 +2,25 @@
 
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/auth.config';
-import Database from 'better-sqlite3';
 import { redirect } from 'next/navigation';
 import { Plan } from '@/lib/store/planSlice';
 import { v4 as uuidv4 } from 'uuid';
+import { createClient, Row } from '@libsql/client';
 
 // Define interface for SQLite user query
 interface DBUser {
   id: string;
 }
+
+// Define interface for plan query result
+interface DBPlanRow {
+  ownerId: string;
+}
+
+const db = createClient({
+  url: process.env.TURSO_DATABASE_URL as string,
+  authToken: process.env.TURSO_AUTH_TOKEN,
+});
 
 export async function createPlan(formData: FormData): Promise<Plan> {
   const session = await getServerSession(authOptions);
@@ -18,15 +28,13 @@ export async function createPlan(formData: FormData): Promise<Plan> {
     redirect('/auth/login');
   }
 
-  const dbTempPath = '/tmp/database.db';
-
-  const db = new Database(dbTempPath);
-
   try {
     // Verify user exists
-    const user = db
-      .prepare('SELECT id FROM users WHERE id = ?')
-      .get(session.user.id) as DBUser | undefined;
+    const userResult = await db.execute({
+      sql: 'SELECT id FROM users WHERE id = ?',
+      args: [session.user.id],
+    });
+    const user = userResult.rows[0] as Row & DBUser | undefined;
     if (!user) {
       throw new Error('User not found in database');
     }
@@ -130,34 +138,37 @@ export async function createPlan(formData: FormData): Promise<Plan> {
     };
 
     // Create plan
-    db.prepare(`
-      INSERT INTO plans (id, title, ownerId)
-      VALUES (?, ?, ?)
-    `).run(
-      plan.id,
-      plan.title,
-      plan.ownerId
-    );
+    await db.execute({
+      sql: `
+        INSERT INTO plans (id, title, ownerId)
+        VALUES (?, ?, ?)
+      `,
+      args: [plan.id, plan.title, plan.ownerId],
+    });
 
     // Create activities
-    const createdActivities = activitiesData.map((activity) => {
+    const createdActivities = [];
+    for (const activity of activitiesData) {
       const activityId = uuidv4();
-      db.prepare(`
-        INSERT INTO activities (id, title, destination, startDate, endDate, startTime, endTime, activities, ownerId, planId)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `).run(
-        activityId,
-        activity.title,
-        activity.destination,
-        activity.startDate,
-        activity.endDate,
-        activity.startTime,
-        activity.endTime,
-        activity.activities,
-        session.user.id,
-        planId
-      );
-      return {
+      await db.execute({
+        sql: `
+          INSERT INTO activities (id, title, destination, startDate, endDate, startTime, endTime, activities, ownerId, planId)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `,
+        args: [
+          activityId,
+          activity.title,
+          activity.destination,
+          activity.startDate,
+          activity.endDate,
+          activity.startTime,
+          activity.endTime,
+          activity.activities,
+          session.user.id,
+          planId,
+        ],
+      });
+      createdActivities.push({
         id: activityId,
         title: activity.title,
         destination: activity.destination,
@@ -168,19 +179,24 @@ export async function createPlan(formData: FormData): Promise<Plan> {
         activities: activity.activities,
         ownerId: session.user.id,
         planId,
-      };
-    });
+      });
+    }
 
     // Share plan
     if (sharedEmail) {
-      const sharedUser = db
-        .prepare('SELECT id FROM users WHERE email = ?')
-        .get(sharedEmail) as DBUser | undefined;
+      const sharedUserResult = await db.execute({
+        sql: 'SELECT id FROM users WHERE email = ?',
+        args: [sharedEmail],
+      });
+      const sharedUser = sharedUserResult.rows[0] as Row & DBUser | undefined;
       if (sharedUser) {
-        db.prepare(`
-          INSERT INTO plan_shares (planId, userId)
-          VALUES (?, ?)
-        `).run(planId, sharedUser.id);
+        await db.execute({
+          sql: `
+            INSERT INTO plan_shares (planId, userId)
+            VALUES (?, ?)
+          `,
+          args: [planId, sharedUser.id],
+        });
       }
     }
 
@@ -193,8 +209,6 @@ export async function createPlan(formData: FormData): Promise<Plan> {
   } catch (err: unknown) {
     console.error('Create plan error:', err);
     throw new Error(err instanceof Error ? err.message : 'Failed to create plan');
-  } finally {
-    db.close();
   }
 }
 
@@ -204,14 +218,12 @@ export async function deletePlan(planId: string): Promise<void> {
     throw new Error('Unauthorized');
   }
 
-  const dbTempPath = '/tmp/database.db';
-
-  const db = new Database(dbTempPath);
-
   try {
-    const plan = db
-      .prepare('SELECT ownerId FROM plans WHERE id = ?')
-      .get(planId) as { ownerId: string } | undefined;
+    const planResult = await db.execute({
+      sql: 'SELECT ownerId FROM plans WHERE id = ?',
+      args: [planId],
+    });
+    const plan = planResult.rows[0] as Row & DBPlanRow | undefined;
 
     if (!plan) {
       throw new Error('Plan not found');
@@ -221,13 +233,20 @@ export async function deletePlan(planId: string): Promise<void> {
       throw new Error('Only the plan owner can delete this plan');
     }
 
-    db.prepare('DELETE FROM plan_shares WHERE planId = ?').run(planId);
-    db.prepare('DELETE FROM activities WHERE planId = ?').run(planId);
-    db.prepare('DELETE FROM plans WHERE id = ?').run(planId);
+    await db.execute({
+      sql: 'DELETE FROM plan_shares WHERE planId = ?',
+      args: [planId],
+    });
+    await db.execute({
+      sql: 'DELETE FROM activities WHERE planId = ?',
+      args: [planId],
+    });
+    await db.execute({
+      sql: 'DELETE FROM plans WHERE id = ?',
+      args: [planId],
+    });
   } catch (err) {
     console.error('Delete plan error:', err);
     throw err;
-  } finally {
-    db.close();
   }
 }

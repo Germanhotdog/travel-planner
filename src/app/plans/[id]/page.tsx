@@ -1,17 +1,15 @@
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/auth.config';
-import Database from 'better-sqlite3';
 import ClientPlanDetail from './ClientPlanDetail';
 import { redirect } from 'next/navigation';
-import path from 'path';
-import fs from 'fs';
+import { createClient, Row } from '@libsql/client';
 
 // Adjusted to match Next.js App Router expectations
 interface PageProps {
   params: Promise<{ id: string }>;
 }
 
-export default async function PlanDetailPage({ params: paramsPromise}: PageProps) {
+export default async function PlanDetailPage({ params: paramsPromise }: PageProps) {
   // Await both promises
   const params = await paramsPromise;
   const { id } = params;
@@ -21,45 +19,49 @@ export default async function PlanDetailPage({ params: paramsPromise}: PageProps
     redirect('/auth/login');
   }
 
-  const dbSourcePath = path.resolve(process.cwd(), 'database.db');
-  const dbTempPath = '/tmp/database.db';
-  if (!fs.existsSync(dbTempPath)) {
-    fs.copyFileSync(dbSourcePath, dbTempPath);
-  }
+  const db = createClient({
+    url: process.env.TURSO_DATABASE_URL as string,
+    authToken: process.env.TURSO_AUTH_TOKEN,
+  });
 
-  const db = new Database(dbTempPath);
   let plan: DBPlan | undefined;
   let activities: DBActivity[] = [];
   let sharedUsers: DBUser[] = [];
 
   try {
-    plan = db
-      .prepare('SELECT * FROM plans WHERE id = ?')
-      .get(id) as DBPlan | undefined;
+    const planResult = await db.execute({
+      sql: 'SELECT * FROM plans WHERE id = ?',
+      args: [id],
+    });
+    plan = planResult.rows[0] as Row & DBPlan | undefined;
 
     if (!plan) {
       redirect('/dashboard');
     }
 
-    activities = db
-      .prepare('SELECT * FROM activities WHERE planId = ?')
-      .all(id) as DBActivity[];
+    const activitiesResult = await db.execute({
+      sql: 'SELECT * FROM activities WHERE planId = ?',
+      args: [id],
+    });
+    activities = activitiesResult.rows as (Row & DBActivity)[];
 
-    const sharedUserIds = db
-      .prepare('SELECT userId FROM plan_shares WHERE planId = ?')
-      .all(id) as { userId: string }[];
+    const sharedUserIdsResult = await db.execute({
+      sql: 'SELECT userId FROM plan_shares WHERE planId = ?',
+      args: [id],
+    });
+    const sharedUserIds = sharedUserIdsResult.rows as (Row & { userId: string })[];
 
     if (sharedUserIds.length > 0) {
       const placeholders = sharedUserIds.map(() => '?').join(',');
-      sharedUsers = db
-        .prepare(`SELECT id, email, name FROM users WHERE id IN (${placeholders})`)
-        .all(...sharedUserIds.map((u) => u.userId)) as DBUser[];
+      const sharedUsersResult = await db.execute({
+        sql: `SELECT id, email, name FROM users WHERE id IN (${placeholders})`,
+        args: sharedUserIds.map((u) => u.userId),
+      });
+      sharedUsers = sharedUsersResult.rows as (Row & DBUser)[];
     }
   } catch (err) {
     console.error('Error fetching plan details:', err);
     redirect('/dashboard');
-  } finally {
-    db.close();
   }
 
   const isOwner = plan.ownerId === session.user.id;

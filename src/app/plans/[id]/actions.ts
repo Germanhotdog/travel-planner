@@ -2,19 +2,15 @@
 
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/auth.config';
-import Database from 'better-sqlite3';
 import { Activity } from '@/lib/store/planSlice';
 import { v4 as uuidv4 } from 'uuid';
-import path from 'path';
-import fs from 'fs';
+import { createClient, Row } from '@libsql/client';
 
-//more comment
 interface DBPlan {
   id: string;
   title: string;
   ownerId: string;
 }
-
 
 export async function updatePlanTitle(planId: string, newTitle: string): Promise<void> {
   const session = await getServerSession(authOptions);
@@ -22,18 +18,17 @@ export async function updatePlanTitle(planId: string, newTitle: string): Promise
     throw new Error('Unauthorized');
   }
 
-  const dbSourcePath = path.resolve(process.cwd(), 'database.db');
-  const dbTempPath = '/tmp/database.db';
-  if (!fs.existsSync(dbTempPath)) {
-    fs.copyFileSync(dbSourcePath, dbTempPath);
-  }
-
-  const db = new Database(dbTempPath);
+  const db = createClient({
+    url: process.env.TURSO_DATABASE_URL as string,
+    authToken: process.env.TURSO_AUTH_TOKEN,
+  });
 
   try {
-    const plan = db
-      .prepare('SELECT * FROM plans WHERE id = ?')
-      .get(planId) as DBPlan | undefined;
+    const planResult = await db.execute({
+      sql: 'SELECT * FROM plans WHERE id = ?',
+      args: [planId],
+    });
+    const plan = planResult.rows[0] as Row & DBPlan | undefined;
 
     if (!plan) {
       throw new Error('Plan not found');
@@ -47,12 +42,13 @@ export async function updatePlanTitle(planId: string, newTitle: string): Promise
       throw new Error('Plan title cannot be empty');
     }
 
-    db.prepare('UPDATE plans SET title = ? WHERE id = ?').run(newTitle.trim(), planId);
+    await db.execute({
+      sql: 'UPDATE plans SET title = ? WHERE id = ?',
+      args: [newTitle.trim(), planId],
+    });
   } catch (err) {
     console.error('Update plan title error:', err);
     throw err;
-  } finally {
-    db.close();
   }
 }
 
@@ -63,26 +59,27 @@ export async function updateActivity(activityId: string, updatedActivity: Partia
     throw new Error('Unauthorized');
   }
 
-  const dbSourcePath = path.resolve(process.cwd(), 'database.db');
-  const dbTempPath = '/tmp/database.db';
-  if (!fs.existsSync(dbTempPath)) {
-    fs.copyFileSync(dbSourcePath, dbTempPath);
-  }
-
-  const db = new Database(dbTempPath);
+  const db = createClient({
+    url: process.env.TURSO_DATABASE_URL as string,
+    authToken: process.env.TURSO_AUTH_TOKEN,
+  });
 
   try {
-    const activity = db
-      .prepare('SELECT * FROM activities WHERE id = ?')
-      .get(activityId) as Activity | undefined;
+    const activityResult = await db.execute({
+      sql: 'SELECT * FROM activities WHERE id = ?',
+      args: [activityId],
+    });
+    const activity = activityResult.rows[0] as Row & Activity | undefined;
 
     if (!activity) {
       throw new Error('Activity not found');
     }
 
-    const plan = db
-      .prepare('SELECT ownerId FROM plans WHERE id = ?')
-      .get(activity.planId) as DBPlan | undefined;
+    const planResult = await db.execute({
+      sql: 'SELECT ownerId FROM plans WHERE id = ?',
+      args: [activity.planId],
+    });
+    const plan = planResult.rows[0] as Row & DBPlan | undefined;
 
     if (!plan || plan.ownerId !== session.user.id) {
       throw new Error('Only the plan owner can edit activities');
@@ -128,9 +125,11 @@ export async function updateActivity(activityId: string, updatedActivity: Partia
     }
 
     // Check for conflicts with other activities in the same plan
-    const otherActivities = db
-      .prepare('SELECT * FROM activities WHERE planId = ? AND id != ?')
-      .all(activity.planId, activityId) as Activity[];
+    const otherActivitiesResult = await db.execute({
+      sql: 'SELECT * FROM activities WHERE planId = ? AND id != ?',
+      args: [activity.planId, activityId],
+    });
+    const otherActivities = otherActivitiesResult.rows as (Row & Activity)[];
 
     for (const other of otherActivities) {
       const otherStart = new Date(other.startDate + (other.startTime ? `T${other.startTime}:00` : 'T00:00:00'));
@@ -142,31 +141,34 @@ export async function updateActivity(activityId: string, updatedActivity: Partia
     }
 
     // Update the activity
-    db.prepare(`
-      UPDATE activities
-      SET title = ?, destination = ?, startDate = ?, endDate = ?, startTime = ?, endTime = ?, activities = ?
-      WHERE id = ?
-    `).run(
-      updates.title || activity.title,
-      updates.destination || activity.destination,
-      updates.startDate || activity.startDate,
-      updates.endDate || activity.endDate,
-      updates.startTime !== undefined ? updates.startTime : activity.startTime,
-      updates.endTime !== undefined ? updates.endTime : activity.endTime,
-      updates.activities !== undefined ? updates.activities : activity.activities,
-      activityId
-    );
+    await db.execute({
+      sql: `
+        UPDATE activities
+        SET title = ?, destination = ?, startDate = ?, endDate = ?, startTime = ?, endTime = ?, activities = ?
+        WHERE id = ?
+      `,
+      args: [
+        updates.title || activity.title,
+        updates.destination || activity.destination,
+        updates.startDate || activity.startDate,
+        updates.endDate || activity.endDate,
+        updates.startTime !== undefined ? updates.startTime : activity.startTime,
+        updates.endTime !== undefined ? updates.endTime : activity.endTime,
+        updates.activities !== undefined ? updates.activities : activity.activities,
+        activityId,
+      ],
+    });
 
-    const updated = db
-      .prepare('SELECT * FROM activities WHERE id = ?')
-      .get(activityId) as Activity;
+    const updatedResult = await db.execute({
+      sql: 'SELECT * FROM activities WHERE id = ?',
+      args: [activityId],
+    });
+    const updated = updatedResult.rows[0] as Row & Activity;
 
     return updated;
   } catch (err) {
     console.error('Update activity error:', err);
     throw err;
-  } finally {
-    db.close();
   }
 }
 
@@ -176,18 +178,17 @@ export async function createActivity(planId: string, activityData: Omit<Activity
     throw new Error('Unauthorized');
   }
 
-  const dbSourcePath = path.resolve(process.cwd(), 'database.db');
-  const dbTempPath = '/tmp/database.db';
-  if (!fs.existsSync(dbTempPath)) {
-    fs.copyFileSync(dbSourcePath, dbTempPath);
-  }
-
-  const db = new Database(dbTempPath);
+  const db = createClient({
+    url: process.env.TURSO_DATABASE_URL as string,
+    authToken: process.env.TURSO_AUTH_TOKEN,
+  });
 
   try {
-    const plan = db
-      .prepare('SELECT * FROM plans WHERE id = ?')
-      .get(planId) as DBPlan | undefined;
+    const planResult = await db.execute({
+      sql: 'SELECT * FROM plans WHERE id = ?',
+      args: [planId],
+    });
+    const plan = planResult.rows[0] as Row & DBPlan | undefined;
 
     if (!plan) {
       throw new Error('Plan not found');
@@ -227,9 +228,11 @@ export async function createActivity(planId: string, activityData: Omit<Activity
     }
 
     // Check for conflicts with existing activities
-    const existingActivities = db
-      .prepare('SELECT * FROM activities WHERE planId = ?')
-      .all(planId) as Activity[];
+    const existingActivitiesResult = await db.execute({
+      sql: 'SELECT * FROM activities WHERE planId = ?',
+      args: [planId],
+    });
+    const existingActivities = existingActivitiesResult.rows as (Row & Activity)[];
 
     for (const existing of existingActivities) {
       const existingStart = new Date(existing.startDate + (existing.startTime ? `T${existing.startTime}:00` : 'T00:00:00'));
@@ -242,33 +245,36 @@ export async function createActivity(planId: string, activityData: Omit<Activity
 
     // Insert new activity
     const activityId = uuidv4();
-    db.prepare(`
-      INSERT INTO activities (id, title, destination, startDate, endDate, startTime, endTime, activities, ownerId, planId)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(
-      activityId,
-      activityData.title.trim(),
-      activityData.destination.trim(),
-      activityData.startDate,
-      activityData.endDate,
-      activityData.startTime || null,
-      activityData.endTime || null,
-      activityData.activities || null,
-      session.user.id,
-      planId
-    );
+    await db.execute({
+      sql: `
+        INSERT INTO activities (id, title, destination, startDate, endDate, startTime, endTime, activities, ownerId, planId)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `,
+      args: [
+        activityId,
+        activityData.title.trim(),
+        activityData.destination.trim(),
+        activityData.startDate,
+        activityData.endDate,
+        activityData.startTime || null,
+        activityData.endTime || null,
+        activityData.activities || null,
+        session.user.id,
+        planId,
+      ],
+    });
 
     // Fetch the created activity
-    const createdActivity = db
-      .prepare('SELECT * FROM activities WHERE id = ?')
-      .get(activityId) as Activity;
+    const createdResult = await db.execute({
+      sql: 'SELECT * FROM activities WHERE id = ?',
+      args: [activityId],
+    });
+    const createdActivity = createdResult.rows[0] as Row & Activity;
 
     return createdActivity;
   } catch (err) {
     console.error('Create activity error:', err);
     throw err;
-  } finally {
-    db.close();
   }
 }
 
@@ -278,36 +284,38 @@ export async function deleteActivity(activityId: string): Promise<void> {
     throw new Error('Unauthorized');
   }
 
-  const dbSourcePath = path.resolve(process.cwd(), 'database.db');
-  const dbTempPath = '/tmp/database.db';
-  if (!fs.existsSync(dbTempPath)) {
-    fs.copyFileSync(dbSourcePath, dbTempPath);
-  }
-
-  const db = new Database(dbTempPath);
+  const db = createClient({
+    url: process.env.TURSO_DATABASE_URL as string,
+    authToken: process.env.TURSO_AUTH_TOKEN,
+  });
 
   try {
-    const activity = db
-      .prepare('SELECT * FROM activities WHERE id = ?')
-      .get(activityId) as Activity | undefined;
+    const activityResult = await db.execute({
+      sql: 'SELECT * FROM activities WHERE id = ?',
+      args: [activityId],
+    });
+    const activity = activityResult.rows[0] as Row & Activity | undefined;
 
     if (!activity) {
       throw new Error('Activity not found');
     }
 
-    const plan = db
-      .prepare('SELECT ownerId FROM plans WHERE id = ?')
-      .get(activity.planId) as DBPlan | undefined;
+    const planResult = await db.execute({
+      sql: 'SELECT ownerId FROM plans WHERE id = ?',
+      args: [activity.planId],
+    });
+    const plan = planResult.rows[0] as Row & DBPlan | undefined;
 
     if (!plan || plan.ownerId !== session.user.id) {
       throw new Error('Only the plan owner can delete activities');
     }
 
-    db.prepare('DELETE FROM activities WHERE id = ?').run(activityId);
+    await db.execute({
+      sql: 'DELETE FROM activities WHERE id = ?',
+      args: [activityId],
+    });
   } catch (err) {
     console.error('Delete activity error:', err);
     throw err;
-  } finally {
-    db.close();
   }
 }

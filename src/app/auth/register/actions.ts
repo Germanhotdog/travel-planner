@@ -1,14 +1,15 @@
 'use server';
 
-import Database from 'better-sqlite3';
 import bcrypt from 'bcrypt';
 import { redirect } from 'next/navigation';
 import { v4 as uuidv4 } from 'uuid';
+import { createClient} from '@libsql/client';
 
 export async function registerUser(formData: FormData) {
-  const dbTempPath = '/tmp/database.db';
-
-  const db = new Database(dbTempPath);
+  const db = createClient({
+    url: process.env.TURSO_DATABASE_URL as string,
+    authToken: process.env.TURSO_AUTH_TOKEN,
+  });
 
   try {
     const name = formData.get('name') as string;
@@ -18,16 +19,16 @@ export async function registerUser(formData: FormData) {
     const hashedPassword = await bcrypt.hash(password, 10);
     const id = uuidv4();
 
-    db.prepare(`
-      INSERT INTO users (id, email, name, password)
-      VALUES (?, ?, ?, ?)
-    `).run(id, email, name, hashedPassword);
-
+    await db.execute({
+      sql: `
+        INSERT INTO users (id, email, name, password)
+        VALUES (?, ?, ?, ?)
+      `,
+      args: [id, email, name, hashedPassword],
+    });
   } catch (error) {
     console.error('Registration error:', error);
     throw new Error('Failed to register user');
-  } finally {
-    db.close();
   }
 
   redirect('/auth/login');
