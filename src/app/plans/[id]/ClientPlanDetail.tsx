@@ -3,6 +3,10 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { updatePlanTitle, updateActivity, createActivity, deleteActivity } from './actions';
+import { Calendar } from '@/components/ui/calendar'; // Adjust the import path based on your ShadCN setup
+import { format } from 'date-fns';
+import { Button } from "@/components/ui/button"
+import { Pencil,Trash2,DoorOpen } from "lucide-react" 
 
 interface DBPlan {
   id: string;
@@ -43,7 +47,6 @@ export default function ClientPlanDetail({ plan, activities: initialActivities, 
     const dateA = new Date(a.startDate).getTime();
     const dateB = new Date(b.startDate).getTime();
     if (dateA !== dateB) return dateA - dateB;
-    // If dates are equal, sort by startTime (null comes last)
     const timeA = a.startTime ? a.startTime : '23:59';
     const timeB = b.startTime ? b.startTime : '23:59';
     return timeA.localeCompare(timeB);
@@ -61,10 +64,13 @@ export default function ClientPlanDetail({ plan, activities: initialActivities, 
     activities: '',
   });
   const [showAddForm, setShowAddForm] = useState(false);
+  const [startDate, setStartDate] = useState<Date | undefined>(initialActivities.length > 0 ? new Date(initialActivities[0].startDate) : undefined);
+  const [endDate, setEndDate] = useState<Date | undefined>(initialActivities.length > 0 ? new Date(initialActivities[0].endDate) : undefined);
+  const [editStartDate, setEditStartDate] = useState<{ [key: string]: Date | undefined }>({});
+  const [editEndDate, setEditEndDate] = useState<{ [key: string]: Date | undefined }>({});
   const mapRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
 
-  // Replace with your Google Maps API key
   const GOOGLE_MAPS_API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || '';
 
   useEffect(() => {
@@ -197,6 +203,8 @@ export default function ClientPlanDetail({ plan, activities: initialActivities, 
         return newState;
       });
       setError('');
+      if (field === 'startDate' && editStartDate[activityId]) setEditStartDate((prev) => ({ ...prev, [activityId]: undefined }));
+      if (field === 'endDate' && editEndDate[activityId]) setEditEndDate((prev) => ({ ...prev, [activityId]: undefined }));
     } catch (err: unknown) {
       const errorMessage = err instanceof Error ? err.message : `Failed to update activity ${field}`;
       setError(errorMessage);
@@ -214,8 +222,8 @@ export default function ClientPlanDetail({ plan, activities: initialActivities, 
       const activityData = {
         title: newActivity.title || '',
         destination: newActivity.destination || '',
-        startDate: newActivity.startDate || '',
-        endDate: newActivity.endDate || '',
+        startDate: startDate ? format(startDate, 'yyyy-MM-dd') : '',
+        endDate: endDate ? format(endDate, 'yyyy-MM-dd') : '',
         startTime: newActivity.startTime || null,
         endTime: newActivity.endTime || null,
         activities: newActivity.activities || null,
@@ -239,6 +247,8 @@ export default function ClientPlanDetail({ plan, activities: initialActivities, 
         endTime: '',
         activities: '',
       });
+      setStartDate(undefined);
+      setEndDate(undefined);
       setShowAddForm(false);
       setError('');
     } catch (err: unknown) {
@@ -311,12 +321,13 @@ export default function ClientPlanDetail({ plan, activities: initialActivities, 
             <>
               <h1 className="text-3xl font-bold">{title}</h1>
               {isOwner && (
-                <button
+                <Button
                   onClick={() => setIsEditingTitle(true)}
-                  className="text-blue-500 hover:underline text-sm"
+                  className="hover:underline text-sm"
+                  variant="secondary" size="sm"
                 >
-                  Edit
-                </button>
+                  <Pencil className="w-4 h-4" />
+                </Button>
               )}
             </>
           )}
@@ -324,7 +335,6 @@ export default function ClientPlanDetail({ plan, activities: initialActivities, 
         {error && <p className="text-red-500 mb-4">{error}</p>}
         <div className="space-y-4">
           <p><strong>Owner:</strong> {isOwner ? 'You' : plan.ownerId}</p>
-          {/* Map Section */}
           <div>
             <strong>Destinations Map:</strong>
             {mapError ? (
@@ -345,7 +355,6 @@ export default function ClientPlanDetail({ plan, activities: initialActivities, 
                 {activities.map((activity) => (
                   <li key={activity.id} className="mb-2">
                     <div className="flex flex-wrap items-center space-x-2">
-                      {/* Activity Title */}
                       {editingActivity[`${activity.id}-title`] ? (
                         <>
                           <input
@@ -366,17 +375,17 @@ export default function ClientPlanDetail({ plan, activities: initialActivities, 
                         <>
                           <strong>{activity.title}</strong>
                           {isOwner && (
-                            <button
+                            <Button
                               onClick={() => toggleEdit(`${activity.id}-title`)}
-                              className="text-blue-500 hover:underline text-sm"
+                              className="hover:underline text-sm"
+                              variant="secondary" size="sm"
                             >
-                              Edit
-                            </button>
+                              <Pencil className="w-4 h-4" />
+                            </Button>
                           )}
                         </>
                       )}
                       <span>-</span>
-                      {/* Destination */}
                       {editingActivity[`${activity.id}-destination`] ? (
                         <>
                           <input
@@ -397,25 +406,29 @@ export default function ClientPlanDetail({ plan, activities: initialActivities, 
                         <>
                           <span>{activity.destination}</span>
                           {isOwner && (
-                            <button
+                            <Button
                               onClick={() => toggleEdit(`${activity.id}-destination`)}
-                              className="text-blue-500 hover:underline text-sm"
+                              className="hover:underline text-sm"
+                              variant="secondary" size="sm"
                             >
-                              Edit
-                            </button>
+                              <Pencil className="w-4 h-4" />
+                            </Button>
                           )}
                         </>
                       )}
                       <span>(</span>
-                      {/* Start Date */}
                       {editingActivity[`${activity.id}-startDate`] ? (
-                        <>
-                          <input
-                            type="date"
-                            defaultValue={activity.startDate}
-                            onBlur={(e) => handleUpdateActivityField(activity.id, 'startDate', e.target.value)}
-                            className="border rounded p-1"
-                            autoFocus
+                        <div className="relative">
+                          <Calendar
+                            mode="single"
+                            selected={editStartDate[activity.id] || new Date(activity.startDate)}
+                            onSelect={(date) => {
+                              if (date) {
+                                setEditStartDate((prev) => ({ ...prev, [activity.id]: date }));
+                                handleUpdateActivityField(activity.id, 'startDate', format(date, 'yyyy-MM-dd'));
+                              }
+                            }}
+                            className="absolute z-10 bg-white border rounded shadow-md"
                           />
                           <button
                             onClick={() => toggleEdit(`${activity.id}-startDate`)}
@@ -423,21 +436,21 @@ export default function ClientPlanDetail({ plan, activities: initialActivities, 
                           >
                             Cancel
                           </button>
-                        </>
+                        </div>
                       ) : (
                         <>
                           <span>{new Date(activity.startDate).toLocaleDateString()}</span>
                           {isOwner && (
-                            <button
+                            <Button
                               onClick={() => toggleEdit(`${activity.id}-startDate`)}
-                              className="text-blue-500 hover:underline text-sm"
+                              variant="secondary" size="sm"
+                              className="hover:underline text-sm"
                             >
-                              Edit
-                            </button>
+                              <Pencil className="w-4 h-4" />
+                            </Button>
                           )}
                         </>
                       )}
-                      {/* Start Time */}
                       {editingActivity[`${activity.id}-startTime`] ? (
                         <>
                           <input
@@ -458,25 +471,29 @@ export default function ClientPlanDetail({ plan, activities: initialActivities, 
                         <>
                           {activity.startTime && <span>{activity.startTime}</span>}
                           {isOwner && (
-                            <button
+                            <Button
                               onClick={() => toggleEdit(`${activity.id}-startTime`)}
-                              className="text-blue-500 hover:underline text-sm"
+                              className="hover:underline text-sm"
+                              variant="secondary" size="sm"
                             >
-                              Edit
-                            </button>
+                              <Pencil className="w-4 h-4" />
+                            </Button>
                           )}
                         </>
                       )}
                       <span>to</span>
-                      {/* End Date */}
                       {editingActivity[`${activity.id}-endDate`] ? (
-                        <>
-                          <input
-                            type="date"
-                            defaultValue={activity.endDate}
-                            onBlur={(e) => handleUpdateActivityField(activity.id, 'endDate', e.target.value)}
-                            className="border rounded p-1"
-                            autoFocus
+                        <div className="relative">
+                          <Calendar
+                            mode="single"
+                            selected={editEndDate[activity.id] || new Date(activity.endDate)}
+                            onSelect={(date) => {
+                              if (date) {
+                                setEditEndDate((prev) => ({ ...prev, [activity.id]: date }));
+                                handleUpdateActivityField(activity.id, 'endDate', format(date, 'yyyy-MM-dd'));
+                              }
+                            }}
+                            className="absolute z-10 bg-white border rounded shadow-md"
                           />
                           <button
                             onClick={() => toggleEdit(`${activity.id}-endDate`)}
@@ -484,21 +501,21 @@ export default function ClientPlanDetail({ plan, activities: initialActivities, 
                           >
                             Cancel
                           </button>
-                        </>
+                        </div>
                       ) : (
                         <>
                           <span>{new Date(activity.endDate).toLocaleDateString()}</span>
                           {isOwner && (
-                            <button
+                            <Button
                               onClick={() => toggleEdit(`${activity.id}-endDate`)}
-                              className="text-blue-500 hover:underline text-sm"
+                              className="hover:underline text-sm"
+                              variant="secondary" size="sm"
                             >
-                              Edit
-                            </button>
+                              <Pencil className="w-4 h-4" />
+                            </Button>
                           )}
                         </>
                       )}
-                      {/* End Time */}
                       {editingActivity[`${activity.id}-endTime`] ? (
                         <>
                           <input
@@ -519,27 +536,27 @@ export default function ClientPlanDetail({ plan, activities: initialActivities, 
                         <>
                           {activity.endTime && <span>{activity.endTime}</span>}
                           {isOwner && (
-                            <button
+                            <Button
                               onClick={() => toggleEdit(`${activity.id}-endTime`)}
-                              className="text-blue-500 hover:underline text-sm"
+                              className="hover:underline text-sm"
+                              variant="secondary" size="sm"
                             >
-                              Edit
-                            </button>
+                              <Pencil className="w-4 h-4" />
+                            </Button>
                           )}
                         </>
                       )}
                       <span>)</span>
-                      {/* Delete Button */}
                       {isOwner && (
-                        <button
+                        <Button
                           onClick={() => handleDeleteActivity(activity.id)}
                           className="text-red-500 hover:underline text-sm"
+                          variant="secondary" size="sm"
                         >
-                          Delete
-                        </button>
+                          <Trash2 className="w-4 h-4"/>
+                        </Button>
                       )}
                     </div>
-                    {/* Activities Description */}
                     {editingActivity[`${activity.id}-activities`] ? (
                       <div className="mt-1">
                         <textarea
@@ -561,12 +578,13 @@ export default function ClientPlanDetail({ plan, activities: initialActivities, 
                           <p className="text-gray-600">{activity.activities}</p>
                         )}
                         {isOwner && (
-                          <button
+                          <Button
                             onClick={() => toggleEdit(`${activity.id}-activities`)}
-                            className="text-blue-500 hover:underline text-sm"
+                            className="hover:underline text-sm"
+                            variant="secondary" size="sm"
                           >
-                            Edit
-                          </button>
+                            <Pencil className="w-4 h-4" />
+                          </Button>
                         )}
                       </>
                     )}
@@ -574,16 +592,15 @@ export default function ClientPlanDetail({ plan, activities: initialActivities, 
                 ))}
               </ul>
             )}
-            {/* Add Activity Button and Form */}
             {isOwner && (
               <>
                 {!showAddForm && (
-                  <button
+                  <Button
                     onClick={() => setShowAddForm(true)}
-                    className="mt-4 bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
+                    
                   >
                     Add Activity
-                  </button>
+                  </Button>
                 )}
                 {showAddForm && (
                   <div className="mt-4 p-4 border rounded">
@@ -611,12 +628,11 @@ export default function ClientPlanDetail({ plan, activities: initialActivities, 
                       </div>
                       <div>
                         <label className="block text-gray-700">Start Date</label>
-                        <input
-                          type="date"
-                          value={newActivity.startDate || ''}
-                          onChange={(e) => setNewActivity({ ...newActivity, startDate: e.target.value })}
-                          className="w-full p-1 border rounded"
-                          required
+                        <Calendar
+                          mode="single"
+                          selected={startDate}
+                          onSelect={setStartDate}
+                          className="rounded-md border"
                         />
                       </div>
                       <div>
@@ -630,12 +646,11 @@ export default function ClientPlanDetail({ plan, activities: initialActivities, 
                       </div>
                       <div>
                         <label className="block text-gray-700">End Date</label>
-                        <input
-                          type="date"
-                          value={newActivity.endDate || ''}
-                          onChange={(e) => setNewActivity({ ...newActivity, endDate: e.target.value })}
-                          className="w-full p-1 border rounded"
-                          required
+                        <Calendar
+                          mode="single"
+                          selected={endDate}
+                          onSelect={setEndDate}
+                          className="rounded-md border"
                         />
                       </div>
                       <div>
@@ -656,12 +671,12 @@ export default function ClientPlanDetail({ plan, activities: initialActivities, 
                         />
                       </div>
                       <div className="flex space-x-2">
-                        <button
+                        <Button
                           type="submit"
-                          className="bg-blue-500 text-white px-2 py-1 rounded hover:bg-blue-600"
+                          
                         >
                           Add Activity
-                        </button>
+                        </Button>
                         <button
                           type="button"
                           onClick={() => {
@@ -675,6 +690,8 @@ export default function ClientPlanDetail({ plan, activities: initialActivities, 
                               endTime: '',
                               activities: '',
                             });
+                            setStartDate(undefined);
+                            setEndDate(undefined);
                           }}
                           className="bg-gray-500 text-white px-2 py-1 rounded hover:bg-gray-600"
                         >
@@ -702,12 +719,12 @@ export default function ClientPlanDetail({ plan, activities: initialActivities, 
             )}
           </div>
         </div>
-        <button
+        <Button
           onClick={() => router.push('/dashboard')}
-          className="mt-6 inline-block bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
+          variant="secondary"
         >
-          Back to Dashboard
-        </button>
+          <DoorOpen/>Back to Dashboard
+        </Button>
       </div>
     </div>
   );

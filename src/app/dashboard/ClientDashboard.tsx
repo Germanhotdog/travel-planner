@@ -9,6 +9,10 @@ import { Session } from 'next-auth';
 import { signOut } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { deletePlan } from '@/app/plans/new/actions';
+import { Button } from "@/components/ui/button"
+import { LogOut } from 'lucide-react';
+import { CirclePlus } from 'lucide-react';
+
 
 interface ClientDashboardProps {
   plans: Plan[];
@@ -54,21 +58,21 @@ export default function ClientDashboard({ plans, user }: ClientDashboardProps) {
       <div className="max-w-4xl mx-auto">
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-3xl font-bold">Welcome, {user.name || user.email}</h1>
-          <p className="text-1xl font-bold">attention! please do not use Safari browser for better user experience</p>
-          <button
+          <p className="text-sm ">attention! please do not use Safari browser for better user experience</p>
+          <Button
             onClick={handleLogout}
-            className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600"
+            className="text-red-500 px-4 py-2 rounded hover:bg-red-600 hover:text-white"
+            variant="secondary"
           >
-            Logout
-          </button>
+            <LogOut/>
+          </Button>
         
         </div>
-        <Link
-          href="/plans/new"
-          className="mb-6 inline-block bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
-        >
-          Create New Plan
-        </Link>
+        <Button asChild className="mb-6 bg-black text-white px-4 py-2 rounded hover:bg-white hover:text-black transition-colors">
+          <Link href="/plans/new">
+            Create Plan<CirclePlus />
+          </Link>
+        </Button>
         <h2 className="text-2xl font-semibold mb-4">Your Travel Plans</h2>
         {error && <p className="text-red-500 mb-4">{error}</p>}
         {reduxPlans.length === 0 ? (
@@ -100,19 +104,18 @@ export default function ClientDashboard({ plans, user }: ClientDashboardProps) {
                   )}
                 </div>
                 <div className="mt-2 flex space-x-2">
-                  <Link
-                    href={`/plans/${plan.id}`}
-                    className="text-blue-500 hover:underline"
-                  >
-                    View Details
+                  <Link href={`/plans/${plan.id}`} passHref>
+                    <Button variant="secondary" asChild>
+                      <a>View Details</a>
+                    </Button>
                   </Link>
                   {plan.ownerId === user.id && (
-                    <button
+                    <Button
+                      variant="destructive"
                       onClick={() => handleDelete(plan.id)}
-                      className="text-red-500 hover:underline"
                     >
                       Delete
-                    </button>
+                    </Button>
                   )}
                 </div>
               </div>
