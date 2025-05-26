@@ -10,9 +10,8 @@ import { signOut } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { deletePlan } from '@/app/plans/new/actions';
 import { Button } from "@/components/ui/button"
-import { LogOut } from 'lucide-react';
-import { CirclePlus } from 'lucide-react';
-
+import { LogOut,CirclePlus,Trash2,Share } from 'lucide-react';
+import { saveAs } from 'file-saver';
 
 interface ClientDashboardProps {
   plans: Plan[];
@@ -53,6 +52,28 @@ export default function ClientDashboard({ plans, user }: ClientDashboardProps) {
     }
   };
 
+  const handleExportToCSV = (plan: Plan) => {
+    const headers = ['Plan Title', 'Activity Title', 'Destination', 'Start Date', 'Start Time', 'End Date', 'End Time', 'Remark'];
+    const rows = plan.activities.map(activity => [
+      plan.title,
+      activity.title,
+      activity.destination,
+      new Date(activity.startDate).toLocaleDateString(),
+      activity.startTime || '',
+      new Date(activity.endDate).toLocaleDateString(),
+      activity.endTime || '',
+      activity.activities || ''
+    ]);
+
+    const csvContent = [
+      headers.join(','),
+      ...rows.map(row => row.map(field => `"${field}"`).join(',')) // Wrap fields in quotes to handle commas
+    ].join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    saveAs(blob, `${plan.title.replace(/[^a-zA-Z0-9]/g, '_')}_plan.csv`);
+  };
+
   return (
     <div className="min-h-screen bg-gray-100 p-6">
       <div className="max-w-4xl mx-auto">
@@ -66,7 +87,6 @@ export default function ClientDashboard({ plans, user }: ClientDashboardProps) {
           >
             <LogOut/>
           </Button>
-        
         </div>
         <Button asChild className="mb-6 bg-black text-white px-4 py-2 rounded hover:bg-white hover:text-black transition-colors">
           <Link href="/plans/new">
@@ -109,13 +129,24 @@ export default function ClientDashboard({ plans, user }: ClientDashboardProps) {
                       <a>View Details</a>
                     </Button>
                   </Link>
+
+                  <Button
+                    variant="outline"
+                    onClick={() => handleExportToCSV(plan)}
+                  >
+                    <Share/>CSV
+                  </Button>
+                  
                   {plan.ownerId === user.id && (
-                    <Button
-                      variant="destructive"
-                      onClick={() => handleDelete(plan.id)}
-                    >
-                      Delete
-                    </Button>
+                    <>
+                      <Button
+                        variant="destructive"
+                        onClick={() => handleDelete(plan.id)}
+                      >
+                        <Trash2/>
+                      </Button>
+                      
+                    </>
                   )}
                 </div>
               </div>

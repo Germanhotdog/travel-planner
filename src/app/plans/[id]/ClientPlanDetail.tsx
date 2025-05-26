@@ -4,7 +4,8 @@ import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { updatePlanTitle, updateActivity, createActivity, deleteActivity } from './actions';
 import { Button } from "@/components/ui/button"
-import { Pencil,Trash2,DoorOpen } from "lucide-react" 
+import { Pencil,Trash2,DoorOpen,Share } from "lucide-react" 
+import { saveAs } from 'file-saver';
 
 interface DBPlan {
   id: string;
@@ -281,6 +282,28 @@ export default function ClientPlanDetail({ plan, activities: initialActivities, 
     }));
   };
 
+  const handleExportToCSV = () => {
+    const headers = ['Plan Title', 'Activity Title', 'Destination', 'Start Date', 'Start Time', 'End Date', 'End Time', 'Remarks'];
+    const rows = activities.map(activity => [
+      plan.title,
+      activity.title,
+      activity.destination,
+      new Date(activity.startDate).toLocaleDateString(),
+      activity.startTime || '',
+      new Date(activity.endDate).toLocaleDateString(),
+      activity.endTime || '',
+      activity.activities || ''
+    ]);
+
+    const csvContent = [
+      headers.join(','),
+      ...rows.map(row => row.map(field => `"${field}"`).join(',')) // Wrap fields in quotes to handle commas
+    ].join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    saveAs(blob, `${plan.title.replace(/[^a-zA-Z0-9]/g, '_')}_plan.csv`);
+  };
+
   return (
     <div className="min-h-screen bg-gray-100 p-6">
       <div className="max-w-4xl mx-auto bg-white p-8 rounded-lg shadow-md">
@@ -327,6 +350,12 @@ export default function ClientPlanDetail({ plan, activities: initialActivities, 
         {error && <p className="text-red-500 mb-4">{error}</p>}
         <div className="space-y-4">
           <p><strong>Owner:</strong> {isOwner ? 'You' : plan.ownerId}</p>
+          <Button
+              onClick={handleExportToCSV}
+              variant="outline"
+          >
+            <Share/>Export to CSV
+          </Button>
           {/* Map Section */}
           <div>
             <strong>Destinations Map:</strong>
@@ -659,7 +688,7 @@ export default function ClientPlanDetail({ plan, activities: initialActivities, 
                         />
                       </div>
                       <div>
-                        <label className="block text-gray-700">Activities (Optional)</label>
+                        <label className="block text-gray-700">Remarks (Optional)</label>
                         <textarea
                           value={newActivity.activities || ''}
                           onChange={(e) => setNewActivity({ ...newActivity, activities: e.target.value })}

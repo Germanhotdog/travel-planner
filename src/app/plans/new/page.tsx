@@ -188,7 +188,7 @@ export default function NewPlan() {
                   />
                 </div>
                 <div className="mb-2">
-                  <label className="block text-gray-700">Activities (Optional)</label>
+                  <label className="block text-gray-700">Remarks (Optional)</label>
                   <textarea
                     value={activity.activities}
                     onChange={(e) => updateActivity(index, 'activities', e.target.value)}
