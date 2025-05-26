@@ -3,7 +3,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { updatePlanTitle, updateActivity, createActivity, deleteActivity } from './actions';
-import { Calendar } from '@/components/ui/calendar'; // Adjust the import path based on your ShadCN setup
 import { format } from 'date-fns';
 import { Button } from "@/components/ui/button"
 import { Pencil,Trash2,DoorOpen } from "lucide-react" 
@@ -419,16 +418,12 @@ export default function ClientPlanDetail({ plan, activities: initialActivities, 
                       <span>(</span>
                       {editingActivity[`${activity.id}-startDate`] ? (
                         <div className="relative">
-                          <Calendar
-                            mode="single"
-                            selected={editStartDate[activity.id] || new Date(activity.startDate)}
-                            onSelect={(date) => {
-                              if (date) {
-                                setEditStartDate((prev) => ({ ...prev, [activity.id]: date }));
-                                handleUpdateActivityField(activity.id, 'startDate', format(date, 'yyyy-MM-dd'));
-                              }
-                            }}
-                            className="absolute z-10 bg-white border rounded shadow-md"
+                          <input
+                            type="date"
+                            defaultValue={activity.startDate}
+                            onBlur={(e) => handleUpdateActivityField(activity.id, 'startDate', e.target.value)}
+                            className="border rounded p-1"
+                            autoFocus
                           />
                           <button
                             onClick={() => toggleEdit(`${activity.id}-startDate`)}
@@ -484,16 +479,12 @@ export default function ClientPlanDetail({ plan, activities: initialActivities, 
                       <span>to</span>
                       {editingActivity[`${activity.id}-endDate`] ? (
                         <div className="relative">
-                          <Calendar
-                            mode="single"
-                            selected={editEndDate[activity.id] || new Date(activity.endDate)}
-                            onSelect={(date) => {
-                              if (date) {
-                                setEditEndDate((prev) => ({ ...prev, [activity.id]: date }));
-                                handleUpdateActivityField(activity.id, 'endDate', format(date, 'yyyy-MM-dd'));
-                              }
-                            }}
-                            className="absolute z-10 bg-white border rounded shadow-md"
+                          <input
+                            type="date"
+                            defaultValue={activity.endDate}
+                            onBlur={(e) => handleUpdateActivityField(activity.id, 'endDate', e.target.value)}
+                            className="border rounded p-1"
+                            autoFocus
                           />
                           <button
                             onClick={() => toggleEdit(`${activity.id}-endDate`)}
@@ -628,11 +619,12 @@ export default function ClientPlanDetail({ plan, activities: initialActivities, 
                       </div>
                       <div>
                         <label className="block text-gray-700">Start Date</label>
-                        <Calendar
-                          mode="single"
-                          selected={startDate}
-                          onSelect={setStartDate}
-                          className="rounded-md border"
+                        <input
+                          type="date"
+                          value={newActivity.startDate || ''}
+                          onChange={(e) => setNewActivity({ ...newActivity, startDate: e.target.value })}
+                          className="w-full p-1 border rounded"
+                          required
                         />
                       </div>
                       <div>
@@ -646,11 +638,12 @@ export default function ClientPlanDetail({ plan, activities: initialActivities, 
                       </div>
                       <div>
                         <label className="block text-gray-700">End Date</label>
-                        <Calendar
-                          mode="single"
-                          selected={endDate}
-                          onSelect={setEndDate}
-                          className="rounded-md border"
+                        <input
+                          type="date"
+                          value={newActivity.endDate || ''}
+                          onChange={(e) => setNewActivity({ ...newActivity, endDate: e.target.value })}
+                          className="w-full p-1 border rounded"
+                          required
                         />
                       </div>
                       <div>

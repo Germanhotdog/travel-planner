@@ -3,8 +3,6 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createPlan } from './actions';
-import { Calendar } from '@/components/ui/calendar'; // Adjust the import path based on your ShadCN setup
-import { format } from 'date-fns';
 import { Button } from "@/components/ui/button"
 import { CirclePlus } from 'lucide-react';
 
@@ -38,16 +36,6 @@ export default function NewPlan() {
   const updateActivity = (index: number, field: keyof Activity, value: string) => {
     const newActivities = [...activities];
     newActivities[index] = { ...newActivities[index], [field]: value };
-    setActivities(newActivities);
-  };
-
-  const updateActivityDate = (index: number, isStart: boolean, date: Date | undefined) => {
-    const newDates = [...activityDates];
-    newDates[index][isStart ? 0 : 1] = date;
-    setActivityDates(newDates);
-    const formattedDate = date ? format(date, 'yyyy-MM-dd') : '';
-    const newActivities = [...activities];
-    newActivities[index] = { ...newActivities[index], [isStart ? 'startDate' : 'endDate']: formattedDate };
     setActivities(newActivities);
   };
 
@@ -163,11 +151,12 @@ export default function NewPlan() {
                 </div>
                 <div className="mb-2">
                   <label className="block text-gray-700">Start Date</label>
-                  <Calendar
-                    mode="single"
-                    selected={activityDates[index][0]}
-                    onSelect={(date) => updateActivityDate(index, true, date)}
-                    className="rounded-md border"
+                  <input
+                    type="date"
+                    value={activity.startDate}
+                    onChange={(e) => updateActivity(index, 'startDate', e.target.value)}
+                    className="w-full p-2 border rounded"
+                    required
                   />
                 </div>
                 <div className="mb-2">
@@ -181,11 +170,12 @@ export default function NewPlan() {
                 </div>
                 <div className="mb-2">
                   <label className="block text-gray-700">End Date</label>
-                  <Calendar
-                    mode="single"
-                    selected={activityDates[index][1]}
-                    onSelect={(date) => updateActivityDate(index, false, date)}
-                    className="rounded-md border"
+                  <input
+                    type="date"
+                    value={activity.endDate}
+                    onChange={(e) => updateActivity(index, 'endDate', e.target.value)}
+                    className="w-full p-2 border rounded"
+                    required
                   />
                 </div>
                 <div className="mb-2">
