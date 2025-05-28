@@ -88,9 +88,15 @@ export default function ClientDashboard({ plans, user }: ClientDashboardProps) {
             <LogOut/>
           </Button>
         </div>
-        <Button asChild className="mb-6 bg-black text-white px-4 py-2 rounded hover:bg-white hover:text-black transition-colors">
+        <Button asChild className="mb-6 mr-4 bg-black text-white px-4 py-2 rounded hover:bg-white hover:text-black transition-colors">
           <Link href="/plans/new">
             Create Plan<CirclePlus />
+          </Link>
+        </Button>
+
+        <Button asChild className="mb-6 mr-4 bg-black text-white px-4 py-2 rounded hover:bg-white hover:text-black transition-colors">
+          <Link href="/plan-with-ai">
+            Create Plan with AI<CirclePlus />
           </Link>
         </Button>
         <h2 className="text-2xl font-semibold mb-4">Your Travel Plans</h2>
