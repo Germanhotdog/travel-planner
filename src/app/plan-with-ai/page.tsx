@@ -48,7 +48,11 @@ export default function PlanWithAI() {
         "endTime": "string | null" (e.g., "15:30" or null),
         "activities": "string | null" (e.g., "Visit Eiffel Tower" or null)
         }
-      Ensure the JSON is valid and the dates align with the provided range.`;
+        Ensure the JSON is valid and the activities align with the following constraints:
+        - The first activity must start on ${startDate} at ${startTime || 'any time'}.
+        - The last activity must end on ${endDate} at ${endTime || 'any time'}.
+        - All other activities must have dates and times within this range, distributed realistically across the trip duration.
+        Ensure the JSON is valid and the dates align with the provided range.`;
 
       const response = await axios.post(
         'https://api.deepseek.com/v1/chat/completions',
