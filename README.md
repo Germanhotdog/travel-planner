@@ -8,6 +8,7 @@ A full-featured travel planning application that allows users to create, manage,
 
 ### Plan Management
 - Create new travel plans
+- generate new travel plans with AI
 - View and manage all plans in a dashboard
 - Edit plan details and activities
 - Delete plans and activities
@@ -18,6 +19,10 @@ A full-featured travel planning application that allows users to create, manage,
   - Start/end dates and times
   - Additional remarks
 - Edit activities inline
+  
+### AI generated travel plan
+- Generate plans with Deepseek
+- Tailor made with users' request(Destination, Date and Time)
 
 ### Google Maps Integration
 - Interactive map view for each plan
@@ -54,6 +59,7 @@ A full-featured travel planning application that allows users to create, manage,
 ### APIs
 - Google Maps API
 - Geocoding API
+- Deepseek API
 
 ## Getting Started
 
