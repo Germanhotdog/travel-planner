@@ -8,7 +8,7 @@ import Link from 'next/link';
 import { Session } from 'next-auth';
 import { signOut } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
-import { deletePlan } from '@/app/plans/new/actions';
+import { deletePlan } from '@/lib/services/createPlanActions';
 import { Button } from "@/components/ui/button"
 import { LogOut,CirclePlus,Trash2,Share } from 'lucide-react';
 import { saveAs } from 'file-saver';

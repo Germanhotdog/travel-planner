@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { updatePlanTitle, updateActivity, createActivity, deleteActivity } from './actions';
+import { updatePlanTitle, updateActivity, createActivity, deleteActivity } from '@/lib/services/updateActions';
 import { Button } from "@/components/ui/button"
 import { Pencil,Trash2,DoorOpen,Share } from "lucide-react" 
 import { saveAs } from 'file-saver';

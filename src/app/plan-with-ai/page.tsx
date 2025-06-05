@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { DoorOpen} from "lucide-react" 
 import axios from 'axios';
-import { createPlan} from '../plans/new/actions';
+import { createPlan} from '@/lib/services/createPlanActions';
 import { useRouter } from 'next/navigation';
 
 interface Activity {

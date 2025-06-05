@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { registerUser } from './actions';
+import { registerUser } from '@/lib/services/registerActions';
 
 export default function Register() {
   const [form, setForm] = useState({ name: '', email: '', password: '' });

@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { createPlan } from './actions';
+import { createPlan } from '@/lib/services/createPlanActions';
 import { Button } from "@/components/ui/button"
 import { CirclePlus } from 'lucide-react';
 
